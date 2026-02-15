@@ -77,9 +77,20 @@ if [ -n "$USER_IDS" ]; then
     echo "       Access restricted to: $USER_IDS"
 fi
 
-# --- 5. Create systemd service ---
+# --- 5. Make autodeploy script executable ---
+echo "[5/7] Setting up autodeploy script..."
+chmod +x "$APP_DIR/scripts/autodeploy.sh"
+# Allow the deploy user to restart the service without a password prompt
+SUDOERS_LINE="$CURRENT_USER ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart openclaw, /usr/bin/systemctl stop openclaw, /usr/bin/systemctl start openclaw"
+if ! sudo grep -qF "$SUDOERS_LINE" /etc/sudoers.d/openclaw 2>/dev/null; then
+    echo "$SUDOERS_LINE" | sudo tee /etc/sudoers.d/openclaw > /dev/null
+    sudo chmod 440 /etc/sudoers.d/openclaw
+fi
+echo "       Done."
+
+# --- 6. Create systemd service ---
 echo ""
-echo "[5/6] Setting up systemd service..."
+echo "[6/7] Setting up systemd service..."
 sudo tee "$SERVICE_FILE" > /dev/null <<EOF
 [Unit]
 Description=OpenClaw Telegram Bot
@@ -102,8 +113,8 @@ sudo systemctl daemon-reload
 sudo systemctl enable "$SERVICE_NAME" > /dev/null 2>&1
 echo "       Service created and enabled."
 
-# --- 6. Start the bot ---
-echo "[6/6] Starting OpenClaw bot..."
+# --- 7. Start the bot ---
+echo "[7/7] Starting OpenClaw bot..."
 sudo systemctl restart "$SERVICE_NAME"
 sleep 2
 
@@ -120,6 +131,14 @@ if sudo systemctl is-active --quiet "$SERVICE_NAME"; then
     echo "    Logs:     sudo journalctl -u openclaw -f"
     echo "    Stop:     sudo systemctl stop openclaw"
     echo "    Restart:  sudo systemctl restart openclaw"
+    echo ""
+    echo "  --- Auto-Deploy (GitHub Actions) ---"
+    echo "  To enable push-to-deploy, add these GitHub secrets:"
+    echo "    EC2_HOST     = your EC2 public IP or hostname"
+    echo "    EC2_USER     = ubuntu"
+    echo "    EC2_SSH_KEY  = contents of your .pem private key"
+    echo ""
+    echo "  Then every push to main auto-deploys here."
     echo ""
 else
     echo ""
