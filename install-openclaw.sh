@@ -2,6 +2,15 @@
 set -e
 set -o pipefail
 
+# This script should be run as a normal user (not root/sudo).
+# It will use sudo internally only for apt commands.
+if [ "$(id -u)" -eq 0 ]; then
+    echo "ERROR: Do not run this script as root or with sudo."
+    echo "Run it as your normal user instead:"
+    echo "  bash install-openclaw.sh"
+    exit 1
+fi
+
 echo "========================================="
 echo "  OpenClaw Installation Script"
 echo "  With Telegram Integration"
