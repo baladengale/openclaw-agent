@@ -180,3 +180,8 @@ docker save openclaw:optimized | gzip > openclaw-optimized.tar.gz
 # On the target machine
 docker load < openclaw-optimized.tar.gz
 ```
+
+## skills market overview 
+```
+uv run --script ~/.openclaw/workspace/skills/market-overview/market_overview.py
+```
