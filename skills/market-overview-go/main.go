@@ -917,7 +917,7 @@ func printMovers(results map[string]*MarketResult) {
 		var movers []mover
 		for _, t := range sec.Tickers {
 			if mr, ok := results[t.Symbol]; ok {
-				movers = append(movers, mover{mr.Name, mr.ChangePct})
+				movers = append(movers, mover{mr.Name, effectiveMoverPct(mr)})
 			}
 		}
 		sort.Slice(movers, func(i, j int) bool { return movers[i].changePct > movers[j].changePct })
@@ -929,12 +929,12 @@ func printMovers(results map[string]*MarketResult) {
 		}
 		fmt.Printf("  %sGainers:%s ", ansiGreen, ansiReset)
 		for i := 0; i < top; i++ {
-			fmt.Printf("%s(%s%+.1f%%%s) ", movers[i].name, ansiGreen, movers[i].changePct, ansiReset)
+			fmt.Printf("%s(%s%+.1f%%%s) ", movers[i].name, colorPct(movers[i].changePct), movers[i].changePct, ansiReset)
 		}
 		fmt.Println()
 		fmt.Printf("  %sLosers: %s ", ansiRed, ansiReset)
 		for i := len(movers) - 1; i >= len(movers)-top && i >= 0; i-- {
-			fmt.Printf("%s(%s%+.1f%%%s) ", movers[i].name, ansiRed, movers[i].changePct, ansiReset)
+			fmt.Printf("%s(%s%+.1f%%%s) ", movers[i].name, colorPct(movers[i].changePct), movers[i].changePct, ansiReset)
 		}
 		fmt.Printf("\n\n")
 	}
@@ -1334,7 +1334,7 @@ func renderMarketHTML(results map[string]*MarketResult, view []SectionConfig, vi
 			var movers []mover
 			for _, t := range sec.Tickers {
 				if mr, ok := results[t.Symbol]; ok {
-					movers = append(movers, mover{mr.Name, mr.ChangePct})
+					movers = append(movers, mover{mr.Name, effectiveMoverPct(mr)})
 				}
 			}
 			sort.Slice(movers, func(i, j int) bool { return movers[i].changePct > movers[j].changePct })
@@ -1362,7 +1362,7 @@ func renderMarketHTML(results map[string]*MarketResult, view []SectionConfig, vi
 
 	funcMap := template.FuncMap{
 		"colorClass": htmlColorClass,
-		"sparkBar":   htmlSparkBar,
+		"trendArrow": htmlTrendArrow,
 	}
 	tmpl, err := template.New("market").Funcs(funcMap).Parse(embeddedTemplate)
 	if err != nil {
@@ -1453,18 +1453,37 @@ func htmlColorClass(val float64) string {
 	return "neutral"
 }
 
-func htmlSparkBar(val float64) template.HTML {
-	width := math.Min(math.Abs(val)*8, 50)
-	if width < 2 {
-		width = 2
-	}
-	color := "#22c55e"
-	if val < 0 {
-		color = "#ef4444"
+func htmlTrendArrow(val float64) template.HTML {
+	var arrow, color string
+	switch {
+	case val > 1.5:
+		arrow, color = "▲▲", "#22c55e"
+	case val > 0:
+		arrow, color = "▲", "#22c55e"
+	case val < -1.5:
+		arrow, color = "▼▼", "#ef4444"
+	case val < 0:
+		arrow, color = "▼", "#ef4444"
+	default:
+		arrow, color = "━", "#9ca3af"
 	}
 	return template.HTML(fmt.Sprintf(
-		`<span style="display:inline-block;height:8px;width:%.0fpx;background:%s;border-radius:4px"></span>`,
-		width, color))
+		`<span style="font-size:14px;font-weight:700;color:%s">%s</span>`,
+		color, arrow))
+}
+
+// effectiveMoverPct returns the best available period for sorting/displaying movers.
+// Falls back to 1W, 1M, 3M when 1D is flat (e.g. markets are closed).
+func effectiveMoverPct(mr *MarketResult) float64 {
+	if math.Abs(mr.ChangePct) > 0.01 {
+		return mr.ChangePct
+	}
+	for _, p := range []string{"1W", "1M", "3M"} {
+		if v, ok := mr.Historical[p]; ok && math.Abs(v) > 0.01 {
+			return v
+		}
+	}
+	return mr.ChangePct
 }
 
 // ─── Email ───────────────────────────────────────────────────────────────────

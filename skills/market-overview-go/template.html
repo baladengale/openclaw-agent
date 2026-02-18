@@ -12,10 +12,9 @@
   .header .subtitle { font-size: 14px; opacity: 0.85; }
   .section-title { background: #f8f9fa; padding: 12px 20px; font-size: 15px; font-weight: 700; color: #0c2461; border-bottom: 2px solid #1e3799; border-top: 1px solid #eee; }
   .market-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .market-table th { background: #f0f2f5; padding: 8px 10px; text-align: right; font-weight: 600; color: #636e72; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .market-table th:first-child { text-align: left; }
-  .market-table td { padding: 8px 10px; border-bottom: 1px solid #f0f2f5; text-align: right; font-size: 13px; }
-  .market-table td:first-child { text-align: left; font-weight: 600; color: #2d3436; }
+  .market-table th { background: #f0f2f5; padding: 8px 10px; text-align: left; font-weight: 600; color: #636e72; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .market-table td { padding: 8px 10px; border-bottom: 1px solid #f0f2f5; text-align: left; font-size: 13px; }
+  .market-table td:first-child { font-weight: 600; color: #2d3436; }
   .positive { color: #22c55e; }
   .negative { color: #ef4444; }
   .neutral { color: #9ca3af; }
@@ -51,32 +50,30 @@
   <table class="market-table">
     <thead>
       <tr>
-        <th style="text-align:left">Market</th>
-        <th style="text-align:left">Price</th>
+        <th>Market</th>
+        <th>Price</th>
         <th>1D</th>
         <th>1W</th>
         <th class="hide-mobile">1M</th>
         <th class="hide-mobile">3M</th>
         <th>1Y</th>
         <th class="hide-mobile">5Y</th>
-        <th class="hide-mobile">Trend</th>
+        <th>Trend</th>
       </tr>
     </thead>
     <tbody>
       {{range .Rows}}
       <tr>
-        <td style="text-align:left">{{.Name}}</td>
-        <td style="text-align:left">{{.Price}}</td>
-        <td class="{{if gt .ChangePct 0.0}}bg-pos positive{{else if lt .ChangePct 0.0}}bg-neg negative{{else}}neutral{{end}}">
-          {{.ChangePctStr}} {{.ChangeArrow}}
-        </td>
+        <td>{{.Name}}</td>
+        <td>{{.Price}}</td>
+        <td class="{{if gt .ChangePct 0.0}}bg-pos positive{{else if lt .ChangePct 0.0}}bg-neg negative{{else}}neutral{{end}}">{{.ChangePctStr}} {{.ChangeArrow}}</td>
         {{range $i, $h := .Historical}}{{if eq $i 0}}<td class="{{$h.Class}}">{{$h.Value}}</td>
         {{else if eq $i 1}}<td class="{{$h.Class}} hide-mobile">{{$h.Value}}</td>
         {{else if eq $i 2}}<td class="{{$h.Class}} hide-mobile">{{$h.Value}}</td>
         {{else if eq $i 4}}<td class="{{$h.Class}}">{{$h.Value}}</td>
         {{else if eq $i 6}}<td class="{{$h.Class}} hide-mobile">{{$h.Value}}</td>
         {{end}}{{end}}
-        <td class="hide-mobile">{{sparkBar .ChangePct}}</td>
+        <td>{{trendArrow .ChangePct}}</td>
       </tr>
       {{end}}
     </tbody>
@@ -89,11 +86,11 @@
   <div class="movers-title">{{.Region}}</div>
   <div class="movers-grid">
     <div class="movers-col">
-      <h4 class="positive">Top Gainers</h4>
+      <h4 class="positive">▲ Top Gainers</h4>
       {{range .Gainers}}<div class="mover-item {{.Class}}">{{.Name}}: {{.ChangePct}}</div>{{end}}
     </div>
     <div class="movers-col">
-      <h4 class="negative">Top Losers</h4>
+      <h4 class="negative">▼ Top Losers</h4>
       {{range .Losers}}<div class="mover-item {{.Class}}">{{.Name}}: {{.ChangePct}}</div>{{end}}
     </div>
   </div>
