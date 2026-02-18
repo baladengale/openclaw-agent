@@ -101,15 +101,15 @@ type YFSummaryResult struct {
 		Industry string `json:"industry"`
 	} `json:"assetProfile"`
 	FinancialData *struct {
-		RecommendationKey string   `json:"recommendationKey"`
-		TargetHighPrice   *YFRaw   `json:"targetHighPrice"`
-		TargetLowPrice    *YFRaw   `json:"targetLowPrice"`
-		TargetMeanPrice   *YFRaw   `json:"targetMeanPrice"`
-		TargetMedianPrice *YFRaw   `json:"targetMedianPrice"`
-		NumAnalysts       *YFRaw   `json:"numberOfAnalystOpinions"`
-		ProfitMargins     *YFRaw   `json:"profitMargins"`
-		RevenueGrowth     *YFRaw   `json:"revenueGrowth"`
-		EarningsGrowth    *YFRaw   `json:"earningsGrowth"`
+		RecommendationKey string `json:"recommendationKey"`
+		TargetHighPrice   *YFRaw `json:"targetHighPrice"`
+		TargetLowPrice    *YFRaw `json:"targetLowPrice"`
+		TargetMeanPrice   *YFRaw `json:"targetMeanPrice"`
+		TargetMedianPrice *YFRaw `json:"targetMedianPrice"`
+		NumAnalysts       *YFRaw `json:"numberOfAnalystOpinions"`
+		ProfitMargins     *YFRaw `json:"profitMargins"`
+		RevenueGrowth     *YFRaw `json:"revenueGrowth"`
+		EarningsGrowth    *YFRaw `json:"earningsGrowth"`
 	} `json:"financialData"`
 	DefaultKeyStatistics *struct {
 		PegRatio          *YFRaw `json:"pegRatio"`
@@ -121,9 +121,9 @@ type YFSummaryResult struct {
 	EarningsHistory *struct {
 		History []struct {
 			Quarter     *struct{ Fmt string } `json:"quarter"`
-			EPSActual   *YFRaw               `json:"epsActual"`
-			EPSEstimate *YFRaw               `json:"epsEstimate"`
-			SurprisePct *YFRaw               `json:"surprisePercent"`
+			EPSActual   *YFRaw                `json:"epsActual"`
+			EPSEstimate *YFRaw                `json:"epsEstimate"`
+			SurprisePct *YFRaw                `json:"surprisePercent"`
 		} `json:"history"`
 	} `json:"earningsHistory"`
 	CalendarEvents *struct {
@@ -152,21 +152,21 @@ type YFRaw struct {
 
 type YFFinStatement struct {
 	EndDate         *struct{ Fmt string } `json:"endDate"`
-	TotalRevenue    *YFRaw               `json:"totalRevenue"`
-	GrossProfit     *YFRaw               `json:"grossProfit"`
-	OperatingIncome *YFRaw               `json:"operatingIncome"`
-	NetIncome       *YFRaw               `json:"netIncome"`
-	EBITDA          *YFRaw               `json:"ebitda"`
+	TotalRevenue    *YFRaw                `json:"totalRevenue"`
+	GrossProfit     *YFRaw                `json:"grossProfit"`
+	OperatingIncome *YFRaw                `json:"operatingIncome"`
+	NetIncome       *YFRaw                `json:"netIncome"`
+	EBITDA          *YFRaw                `json:"ebitda"`
 }
 
 type YFCashflowStatement struct {
 	EndDate             *struct{ Fmt string } `json:"endDate"`
-	OperatingCashflow   *YFRaw               `json:"totalCashFromOperatingActivities"`
-	InvestingCashflow   *YFRaw               `json:"totalCashflowsFromInvestingActivities"`
-	FinancingCashflow   *YFRaw               `json:"totalCashFromFinancingActivities"`
-	CapitalExpenditures *YFRaw               `json:"capitalExpenditures"`
-	FreeCashFlow        *YFRaw               `json:"freeCashFlow"`
-	EndCashPosition     *YFRaw               `json:"endCashPosition"`
+	OperatingCashflow   *YFRaw                `json:"totalCashFromOperatingActivities"`
+	InvestingCashflow   *YFRaw                `json:"totalCashflowsFromInvestingActivities"`
+	FinancingCashflow   *YFRaw                `json:"totalCashFromFinancingActivities"`
+	CapitalExpenditures *YFRaw                `json:"capitalExpenditures"`
+	FreeCashFlow        *YFRaw                `json:"freeCashFlow"`
+	EndCashPosition     *YFRaw                `json:"endCashPosition"`
 }
 
 // ─── Application Data Models ─────────────────────────────────────────────────
@@ -355,6 +355,48 @@ const (
 //go:embed template.html
 var embeddedTemplate string
 
+// Yahoo Finance auth (cookie + crumb)
+var (
+	yahooCookie string
+	yahooCrumb  string
+)
+
+func initYahooAuth() {
+	client := &http.Client{Timeout: httpTimeout}
+	req, _ := http.NewRequest("GET", "https://fc.yahoo.com", nil)
+	req.Header.Set("User-Agent", userAgent)
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("WARN: Yahoo cookie fetch failed: %v", err)
+		return
+	}
+	resp.Body.Close()
+	for _, cookie := range resp.Cookies() {
+		if cookie.Name == "A3" {
+			yahooCookie = cookie.Name + "=" + cookie.Value
+			break
+		}
+	}
+	if yahooCookie == "" {
+		log.Println("WARN: No A3 cookie received from Yahoo")
+		return
+	}
+	req2, _ := http.NewRequest("GET", "https://query2.finance.yahoo.com/v1/test/getcrumb", nil)
+	req2.Header.Set("User-Agent", userAgent)
+	req2.Header.Set("Cookie", yahooCookie)
+	resp2, err := client.Do(req2)
+	if err != nil {
+		log.Printf("WARN: Yahoo crumb fetch failed: %v", err)
+		return
+	}
+	defer resp2.Body.Close()
+	body, _ := io.ReadAll(resp2.Body)
+	yahooCrumb = strings.TrimSpace(string(body))
+	if yahooCrumb != "" {
+		log.Printf("Yahoo auth initialized (crumb: %s...)", yahooCrumb[:4])
+	}
+}
+
 // ─── Main ────────────────────────────────────────────────────────────────────
 
 func main() {
@@ -374,6 +416,7 @@ func main() {
 	flag.Parse()
 
 	loadEnvFile()
+	initYahooAuth()
 
 	cfg := EmailConfig{
 		SMTPHost:    "smtp.gmail.com",
@@ -408,7 +451,7 @@ func main() {
 		default:
 			view, viewName = detailView, "World Markets Overview"
 		}
-		showMovers := !*noMovers && !*summary
+		showMovers := !*noMovers
 		runMarketOverview(view, viewName, showMovers, cfg, now, *noEmail, *emailOnly)
 	}
 }
@@ -419,20 +462,12 @@ func runMarketOverview(view []SectionConfig, viewName string, showMovers bool, c
 	allSymbols := collectSymbols(view, showMovers)
 	log.Printf("Fetching %d symbols for %s...", len(allSymbols), viewName)
 
-	// Phase 1: Batch quote fetch
-	quotes, err := fetchQuotes(allSymbols)
-	if err != nil {
-		log.Printf("WARN: batch quote fetch failed: %v", err)
-		quotes = make(map[string]YFQuote)
-	}
-	log.Printf("Got quotes for %d symbols", len(quotes))
-
-	// Phase 2: Concurrent chart fetches for historical data
+	// Concurrent chart fetches (provides both historical data AND current prices from meta)
 	charts := fetchChartsConcurrent(allSymbols)
-	log.Printf("Got charts for %d symbols", len(charts))
+	log.Printf("Got chart data for %d symbols", len(charts))
 
 	// Build results
-	results := buildMarketResults(quotes, charts, view, showMovers)
+	results := buildMarketResults(charts, view, showMovers)
 
 	// Terminal output
 	if !emailOnly {
@@ -460,6 +495,9 @@ func yahooGet(rawURL string) ([]byte, error) {
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		req, _ := http.NewRequest("GET", rawURL, nil)
 		req.Header.Set("User-Agent", userAgent)
+		if yahooCookie != "" {
+			req.Header.Set("Cookie", yahooCookie)
+		}
 		resp, err := client.Do(req)
 		if err != nil {
 			lastErr = err
@@ -486,7 +524,10 @@ func fetchQuotes(symbols []string) (map[string]YFQuote, error) {
 	for i, s := range symbols {
 		encoded[i] = url.QueryEscape(s)
 	}
-	u := "https://query1.finance.yahoo.com/v7/finance/quote?symbols=" + strings.Join(encoded, ",")
+	u := "https://query2.finance.yahoo.com/v7/finance/quote?symbols=" + strings.Join(encoded, ",")
+	if yahooCrumb != "" {
+		u += "&crumb=" + url.QueryEscape(yahooCrumb)
+	}
 	data, err := yahooGet(u)
 	if err != nil {
 		return nil, err
@@ -502,7 +543,14 @@ func fetchQuotes(symbols []string) (map[string]YFQuote, error) {
 	return result, nil
 }
 
-func fetchChart(symbol string) ([]float64, error) {
+type ChartData struct {
+	Closes        []float64
+	CurrentPrice  float64
+	PreviousClose float64
+	Currency      string
+}
+
+func fetchChart(symbol string) (*ChartData, error) {
 	u := fmt.Sprintf("https://query1.finance.yahoo.com/v8/finance/chart/%s?range=10y&interval=1d",
 		url.QueryEscape(symbol))
 	data, err := yahooGet(u)
@@ -516,7 +564,8 @@ func fetchChart(symbol string) ([]float64, error) {
 	if len(resp.Chart.Result) == 0 || len(resp.Chart.Result[0].Indicators.Quote) == 0 {
 		return nil, fmt.Errorf("no chart data")
 	}
-	rawCloses := resp.Chart.Result[0].Indicators.Quote[0].Close
+	result := resp.Chart.Result[0]
+	rawCloses := result.Indicators.Quote[0].Close
 	closes := make([]float64, 0, len(rawCloses))
 	for _, c := range rawCloses {
 		if c != nil {
@@ -526,11 +575,16 @@ func fetchChart(symbol string) ([]float64, error) {
 	if len(closes) == 0 {
 		return nil, fmt.Errorf("empty closes")
 	}
-	return closes, nil
+	return &ChartData{
+		Closes:        closes,
+		CurrentPrice:  result.Meta.RegularMarketPrice,
+		PreviousClose: result.Meta.PreviousClose,
+		Currency:      result.Meta.Currency,
+	}, nil
 }
 
-func fetchChartsConcurrent(symbols []string) map[string][]float64 {
-	results := make(map[string][]float64)
+func fetchChartsConcurrent(symbols []string) map[string]*ChartData {
+	results := make(map[string]*ChartData)
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, maxSem)
@@ -541,13 +595,13 @@ func fetchChartsConcurrent(symbols []string) map[string][]float64 {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			closes, err := fetchChart(s)
+			cd, err := fetchChart(s)
 			if err != nil {
 				log.Printf("WARN: chart %s: %v", s, err)
 				return
 			}
 			mu.Lock()
-			results[s] = closes
+			results[s] = cd
 			mu.Unlock()
 		}(sym)
 	}
@@ -556,8 +610,11 @@ func fetchChartsConcurrent(symbols []string) map[string][]float64 {
 }
 
 func fetchQuoteSummary(symbol string, modules []string) (*YFSummaryResult, error) {
-	u := fmt.Sprintf("https://query1.finance.yahoo.com/v10/finance/quoteSummary/%s?modules=%s",
+	u := fmt.Sprintf("https://query2.finance.yahoo.com/v10/finance/quoteSummary/%s?modules=%s",
 		url.QueryEscape(symbol), strings.Join(modules, ","))
+	if yahooCrumb != "" {
+		u += "&crumb=" + url.QueryEscape(yahooCrumb)
+	}
 	data, err := yahooGet(u)
 	if err != nil {
 		return nil, err
@@ -606,7 +663,7 @@ func collectSymbols(view []SectionConfig, includeMovers bool) []string {
 	return symbols
 }
 
-func buildMarketResults(quotes map[string]YFQuote, charts map[string][]float64, view []SectionConfig, includeMovers bool) map[string]*MarketResult {
+func buildMarketResults(charts map[string]*ChartData, view []SectionConfig, includeMovers bool) map[string]*MarketResult {
 	results := make(map[string]*MarketResult)
 
 	process := func(symbol, name string) {
@@ -615,7 +672,7 @@ func buildMarketResults(quotes map[string]YFQuote, charts map[string][]float64, 
 		}
 		// Check if cross-rate
 		if pair, isCross := crossRates[symbol]; isCross {
-			cr := computeCrossRate(pair[0], pair[1], quotes, charts)
+			cr := computeCrossRate(pair[0], pair[1], charts)
 			if cr != nil {
 				cr.Name = name
 				cr.Symbol = symbol
@@ -623,34 +680,33 @@ func buildMarketResults(quotes map[string]YFQuote, charts map[string][]float64, 
 			}
 			return
 		}
-		q, ok := quotes[symbol]
-		if !ok || q.RegularMarketPrice == 0 {
+		cd, ok := charts[symbol]
+		if !ok || cd.CurrentPrice == 0 {
 			return
 		}
-		price := q.RegularMarketPrice
-		changePct := q.RegularMarketChangePct
+		price := cd.CurrentPrice
+		prevClose := cd.PreviousClose
 		invert := invertTickers[symbol]
 		if invert && price != 0 {
 			price = 1.0 / price
-			if q.RegularMarketPrevClose != 0 {
-				prevInv := 1.0 / q.RegularMarketPrevClose
-				changePct = ((price - prevInv) / prevInv) * 100
+			if prevClose != 0 {
+				prevClose = 1.0 / prevClose
 			}
 		}
-		mr := &MarketResult{
-			Symbol:         symbol,
-			Name:           name,
-			Price:          price,
-			ChangePct:      changePct,
-			Historical:     make(map[string]float64),
-			Week52High:     q.FiftyTwoWeekHigh,
-			Week52Low:      q.FiftyTwoWeekLow,
-			PETrailing:     q.TrailingPE,
-			PEForward:      q.ForwardPE,
-			Recommendation: "",
+		var changePct float64
+		if prevClose != 0 {
+			changePct = ((price - prevClose) / prevClose) * 100
 		}
-		// Historical from chart
-		if closes, ok := charts[symbol]; ok && len(closes) > 1 {
+		mr := &MarketResult{
+			Symbol:     symbol,
+			Name:       name,
+			Price:      price,
+			ChangePct:  changePct,
+			Historical: make(map[string]float64),
+		}
+		// Historical from chart closes
+		closes := cd.Closes
+		if len(closes) > 1 {
 			current := closes[len(closes)-1]
 			if invert && current != 0 {
 				current = 1.0 / current
@@ -686,16 +742,16 @@ func buildMarketResults(quotes map[string]YFQuote, charts map[string][]float64, 
 	return results
 }
 
-func computeCrossRate(baseSym, quoteSym string, quotes map[string]YFQuote, charts map[string][]float64) *MarketResult {
-	bq, bok := quotes[baseSym]
-	qq, qok := quotes[quoteSym]
-	if !bok || !qok || qq.RegularMarketPrice == 0 {
+func computeCrossRate(baseSym, quoteSym string, charts map[string]*ChartData) *MarketResult {
+	bc, bok := charts[baseSym]
+	qc, qok := charts[quoteSym]
+	if !bok || !qok || qc.CurrentPrice == 0 {
 		return nil
 	}
-	price := bq.RegularMarketPrice / qq.RegularMarketPrice
+	price := bc.CurrentPrice / qc.CurrentPrice
 	var changePct float64
-	if bq.RegularMarketPrevClose != 0 && qq.RegularMarketPrevClose != 0 {
-		prevCross := bq.RegularMarketPrevClose / qq.RegularMarketPrevClose
+	if bc.PreviousClose != 0 && qc.PreviousClose != 0 {
+		prevCross := bc.PreviousClose / qc.PreviousClose
 		if prevCross != 0 {
 			changePct = ((price - prevCross) / prevCross) * 100
 		}
@@ -705,19 +761,13 @@ func computeCrossRate(baseSym, quoteSym string, quotes map[string]YFQuote, chart
 		ChangePct:  changePct,
 		Historical: make(map[string]float64),
 	}
-	bc, bok := charts[baseSym]
-	qc, qok := charts[quoteSym]
-	if bok && qok && len(bc) > 1 && len(qc) > 1 {
-		minLen := len(bc)
-		if len(qc) < minLen {
-			minLen = len(qc)
-		}
-		current := bc[len(bc)-1] / qc[len(qc)-1]
+	if len(bc.Closes) > 1 && len(qc.Closes) > 1 {
+		current := bc.Closes[len(bc.Closes)-1] / qc.Closes[len(qc.Closes)-1]
 		for _, p := range historicalPeriods {
-			bidx := len(bc) - 1 - p.Days
-			qidx := len(qc) - 1 - p.Days
-			if bidx >= 0 && qidx >= 0 && qc[qidx] != 0 {
-				hist := bc[bidx] / qc[qidx]
+			bidx := len(bc.Closes) - 1 - p.Days
+			qidx := len(qc.Closes) - 1 - p.Days
+			if bidx >= 0 && qidx >= 0 && qc.Closes[qidx] != 0 {
+				hist := bc.Closes[bidx] / qc.Closes[qidx]
 				if hist != 0 {
 					mr.Historical[p.Label] = ((current - hist) / hist) * 100
 				}
@@ -894,51 +944,39 @@ func printMovers(results map[string]*MarketResult) {
 
 func runStockDetail(symbol string, cfg EmailConfig, now time.Time, noEmail, emailOnly bool) {
 	log.Printf("Fetching stock detail for %s...", symbol)
-	quotes, err := fetchQuotes([]string{symbol})
+	cd, err := fetchChart(symbol)
 	if err != nil {
-		log.Fatalf("Failed to fetch quote: %v", err)
-	}
-	q, ok := quotes[symbol]
-	if !ok {
-		log.Fatalf("No quote data for %s", symbol)
+		log.Fatalf("Failed to fetch chart: %v", err)
 	}
 
-	summary, err := fetchQuoteSummary(symbol, []string{
+	summary, _ := fetchQuoteSummary(symbol, []string{
 		"assetProfile", "financialData", "defaultKeyStatistics",
 	})
 
+	price := cd.CurrentPrice
+	prevClose := cd.PreviousClose
+	change := price - prevClose
+	var changePct float64
+	if prevClose != 0 {
+		changePct = (change / prevClose) * 100
+	}
+
 	if !emailOnly {
-		name := q.LongName
-		if name == "" {
-			name = q.ShortName
-		}
-		fmt.Printf("\n%s%s %s (%s)%s\n\n", ansiBold, symbol, name, q.Currency, ansiReset)
+		fmt.Printf("\n%s%s (%s)%s\n\n", ansiBold, symbol, cd.Currency, ansiReset)
 
 		fmt.Printf("  Price:        %s (%s%+.2f / %+.2f%%%s)\n",
-			fmtPrice(q.RegularMarketPrice), colorPct(q.RegularMarketChangePct),
-			q.RegularMarketChange, q.RegularMarketChangePct, ansiReset)
-		fmt.Printf("  Open:         %s\n", fmtPrice(q.RegularMarketOpen))
-		fmt.Printf("  Day Range:    %s - %s\n", fmtPrice(q.RegularMarketDayLow), fmtPrice(q.RegularMarketDayHigh))
-		fmt.Printf("  52W Range:    %s - %s\n", fmtPrice(q.FiftyTwoWeekLow), fmtPrice(q.FiftyTwoWeekHigh))
-		fmt.Printf("  Volume:       %s (Avg: %s)\n", addCommas(fmt.Sprintf("%d", q.RegularMarketVolume)), addCommas(fmt.Sprintf("%d", q.AvgVolume3M)))
-		fmt.Printf("  Market Cap:   %s\n", fmtLargeNum(q.MarketCap))
+			fmtPrice(price), colorPct(changePct), change, changePct, ansiReset)
+		fmt.Printf("  Prev Close:   %s\n", fmtPrice(prevClose))
 
 		if summary != nil && summary.AssetProfile != nil {
 			fmt.Printf("  Sector:       %s\n", summary.AssetProfile.Sector)
 			fmt.Printf("  Industry:     %s\n", summary.AssetProfile.Industry)
 		}
 
-		fmt.Println()
-		fmt.Printf("  %sValuation%s\n", ansiBold, ansiReset)
-		fmt.Printf("  PE (T/F):     %.2f / %.2f\n", q.TrailingPE, q.ForwardPE)
-		fmt.Printf("  P/B:          %.2f\n", q.PriceToBook)
-		fmt.Printf("  EPS (T/F):    %.2f / %.2f\n", q.EPSTrailing, q.EPSForward)
-		if q.DividendRate > 0 {
-			fmt.Printf("  Div Rate:     %.2f (Yield: %.2f%%)\n", q.DividendRate, q.DividendYield*100)
-		}
-
 		if summary != nil {
 			if kd := summary.DefaultKeyStatistics; kd != nil {
+				fmt.Println()
+				fmt.Printf("  %sKey Statistics%s\n", ansiBold, ansiReset)
 				if kd.PegRatio != nil {
 					fmt.Printf("  PEG Ratio:    %.2f\n", kd.PegRatio.Raw)
 				}
@@ -957,12 +995,35 @@ func runStockDetail(symbol string, cfg EmailConfig, now time.Time, noEmail, emai
 						ansiRed, fd.TargetLowPrice.Raw, ansiReset,
 						ansiYellow, fd.TargetMeanPrice.Raw, ansiReset,
 						ansiGreen, fd.TargetHighPrice.Raw, ansiReset)
-					upside := ((fd.TargetMeanPrice.Raw - q.RegularMarketPrice) / q.RegularMarketPrice) * 100
+					upside := ((fd.TargetMeanPrice.Raw - price) / price) * 100
 					fmt.Printf("  Upside:        %s%+.1f%%%s\n", colorPct(upside), upside, ansiReset)
 				}
 				if fd.RecommendationKey != "" {
 					rec := strings.ToUpper(fd.RecommendationKey)
 					fmt.Printf("  Recommendation: %s%s%s\n", recColor(rec), rec, ansiReset)
+				}
+				if fd.ProfitMargins != nil {
+					fmt.Printf("  Profit Margin: %.1f%%\n", fd.ProfitMargins.Raw*100)
+				}
+				if fd.RevenueGrowth != nil {
+					fmt.Printf("  Revenue Growth: %s%+.1f%%%s\n", colorPct(fd.RevenueGrowth.Raw), fd.RevenueGrowth.Raw*100, ansiReset)
+				}
+				if fd.EarningsGrowth != nil {
+					fmt.Printf("  Earnings Growth: %s%+.1f%%%s\n", colorPct(fd.EarningsGrowth.Raw), fd.EarningsGrowth.Raw*100, ansiReset)
+				}
+			}
+		}
+
+		// Historical performance
+		if len(cd.Closes) > 1 {
+			fmt.Println()
+			fmt.Printf("  %sHistorical Performance%s\n", ansiBold, ansiReset)
+			current := cd.Closes[len(cd.Closes)-1]
+			for _, p := range historicalPeriods {
+				idx := len(cd.Closes) - 1 - p.Days
+				if idx >= 0 && cd.Closes[idx] != 0 {
+					pct := ((current - cd.Closes[idx]) / cd.Closes[idx]) * 100
+					fmt.Printf("  %-6s %s\n", p.Label+":", fmtPct(pct, true))
 				}
 			}
 		}
@@ -970,6 +1031,15 @@ func runStockDetail(symbol string, cfg EmailConfig, now time.Time, noEmail, emai
 	}
 
 	if !noEmail && cfg.AppPassword != "" {
+		// Build a minimal YFQuote for the HTML renderer
+		q := YFQuote{
+			Symbol:                 symbol,
+			RegularMarketPrice:     price,
+			RegularMarketChange:    change,
+			RegularMarketChangePct: changePct,
+			RegularMarketPrevClose: prevClose,
+			Currency:               cd.Currency,
+		}
 		htmlBody := renderStockDetailHTML(q, summary, now)
 		subject := fmt.Sprintf("Stock Detail: %s - %s", symbol, now.Format("02 Jan 2006"))
 		if err := sendEmail(cfg, htmlBody, subject); err != nil {
@@ -978,6 +1048,15 @@ func runStockDetail(symbol string, cfg EmailConfig, now time.Time, noEmail, emai
 			log.Printf("Email sent to %v", cfg.Recipients)
 		}
 	}
+}
+
+// getSymbolName fetches chart meta for a symbol and returns the price as a fallback name
+func getChartPrice(symbol string) (float64, string) {
+	cd, err := fetchChart(symbol)
+	if err != nil {
+		return 0, ""
+	}
+	return cd.CurrentPrice, cd.Currency
 }
 
 func runDividends(symbol string, cfg EmailConfig, now time.Time, noEmail, emailOnly bool) {
@@ -991,14 +1070,8 @@ func runDividends(symbol string, cfg EmailConfig, now time.Time, noEmail, emailO
 	var resp YFChartResponse
 	json.Unmarshal(data, &resp)
 
-	quotes, _ := fetchQuotes([]string{symbol})
-	q := quotes[symbol]
-
 	if !emailOnly {
-		fmt.Printf("\n%s%s Dividend History (%s)%s\n\n", ansiBold, symbol, q.LongName, ansiReset)
-		if q.DividendRate > 0 {
-			fmt.Printf("  Annual Rate: $%.2f  Yield: %.2f%%\n\n", q.DividendRate, q.DividendYield*100)
-		}
+		fmt.Printf("\n%s%s Dividend History%s\n\n", ansiBold, symbol, ansiReset)
 		if len(resp.Chart.Result) > 0 {
 			divs := resp.Chart.Result[0].Events.Dividends
 			type divEntry struct {
@@ -1031,11 +1104,9 @@ func runEarnings(symbol string, cfg EmailConfig, now time.Time, noEmail, emailOn
 	if err != nil {
 		log.Fatalf("Failed: %v", err)
 	}
-	quotes, _ := fetchQuotes([]string{symbol})
-	q := quotes[symbol]
 
 	if !emailOnly {
-		fmt.Printf("\n%s%s Earnings (%s)%s\n\n", ansiBold, symbol, q.LongName, ansiReset)
+		fmt.Printf("\n%s%s Earnings%s\n\n", ansiBold, symbol, ansiReset)
 
 		if summary.CalendarEvents != nil && summary.CalendarEvents.Earnings != nil {
 			dates := summary.CalendarEvents.Earnings.EarningsDate
@@ -1079,8 +1150,6 @@ func runFinancials(symbol string, quarterly bool, cfg EmailConfig, now time.Time
 	if err != nil {
 		log.Fatalf("Failed: %v", err)
 	}
-	quotes, _ := fetchQuotes([]string{symbol})
-	q := quotes[symbol]
 
 	var stmts []YFFinStatement
 	if quarterly && summary.IncomeStatementHistoryQuarterly != nil {
@@ -1094,7 +1163,7 @@ func runFinancials(symbol string, quarterly bool, cfg EmailConfig, now time.Time
 		if quarterly {
 			label = "Quarterly"
 		}
-		fmt.Printf("\n%s%s Income Statement - %s (%s)%s\n\n", ansiBold, symbol, label, q.LongName, ansiReset)
+		fmt.Printf("\n%s%s Income Statement - %s%s\n\n", ansiBold, symbol, label, ansiReset)
 
 		if len(stmts) > 0 {
 			// Print header
@@ -1141,8 +1210,6 @@ func runCashflow(symbol string, quarterly bool, cfg EmailConfig, now time.Time, 
 	if err != nil {
 		log.Fatalf("Failed: %v", err)
 	}
-	quotes, _ := fetchQuotes([]string{symbol})
-	q := quotes[symbol]
 
 	var stmts []YFCashflowStatement
 	if quarterly && summary.CashflowStatementHistoryQuarterly != nil {
@@ -1156,7 +1223,7 @@ func runCashflow(symbol string, quarterly bool, cfg EmailConfig, now time.Time, 
 		if quarterly {
 			label = "Quarterly"
 		}
-		fmt.Printf("\n%s%s Cashflow Statement - %s (%s)%s\n\n", ansiBold, symbol, label, q.LongName, ansiReset)
+		fmt.Printf("\n%s%s Cashflow Statement - %s%s\n\n", ansiBold, symbol, label, ansiReset)
 
 		if len(stmts) > 0 {
 			fmt.Printf("  %-22s", "")
