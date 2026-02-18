@@ -181,7 +181,216 @@ docker save openclaw:optimized | gzip > openclaw-optimized.tar.gz
 docker load < openclaw-optimized.tar.gz
 ```
 
-## skills market overview 
-```
+## Skills
+
+### Market Overview (Python)
+
+Real-time world market data with rich terminal tables — indices, commodities, crypto, forex, portfolio tracking, stock details, dividends, earnings, and financials.
+
+```bash
+# Default detail view (all world markets)
 uv run --script ~/.openclaw/workspace/skills/market-overview/market_overview.py
+
+# Summary view (key indices only)
+uv run --script ~/.openclaw/workspace/skills/market-overview/market_overview.py -s
+
+# Portfolio view (personal holdings)
+uv run --script ~/.openclaw/workspace/skills/market-overview/market_overview.py -p
+
+# Stock detail
+uv run --script ~/.openclaw/workspace/skills/market-overview/market_overview.py -t NVDA
+
+# Dividends / Earnings / Financials / Cashflow
+uv run --script ~/.openclaw/workspace/skills/market-overview/market_overview.py -d AAPL
+uv run --script ~/.openclaw/workspace/skills/market-overview/market_overview.py -e TSLA
+uv run --script ~/.openclaw/workspace/skills/market-overview/market_overview.py -f NVDA
+uv run --script ~/.openclaw/workspace/skills/market-overview/market_overview.py -c MSFT -q
+```
+
+| Dependency | Purpose |
+|---|---|
+| `uv` | Python script runner (PEP 723 inline deps) |
+| `yfinance` | Yahoo Finance market data |
+| `rich` | Terminal table rendering |
+| `lxml`, `pandas` | HTML/data parsing |
+
+**Cron:** Daily at 8:05 AM SGT via `daily_email.py` (sends HTML email with market summary + portfolio).
+
+---
+
+### Tech Intel Newsletter (Go)
+
+Concurrent RSS aggregator that scores articles by keyword relevance and delivers a curated top-25 "Daily Market & Tech Pulse" HTML newsletter via Gmail SMTP.
+
+```bash
+# Run from compiled binary
+~/.openclaw/workspace/skills/tech-intel/tech-intel
+
+# Or build from source
+cd skills/tech-intel && make run
+
+# Run from Go source directly
+go run skills/tech-intel/main.go
+```
+
+| Feature | Detail |
+|---|---|
+| Language | Go 1.22+ (zero external dependencies, stdlib only) |
+| RSS Feeds | 12 sources: TechCrunch, Ars Technica, The Verge, Hacker News, Wired, CNBC, MarketWatch, Yahoo Finance, Reuters, BBC, NPR |
+| Concurrency | Fan-out goroutines per feed with buffered channels |
+| Scoring | Keyword-based (AI, Semiconductor, Acquisition, FinTech, etc.) with title 2x bonus + recency bonus |
+| Output | Top 25 articles, HTML email via Gmail SMTP + stdout summary |
+| Fallback | Saves HTML to `~/.openclaw/workspace/` if email fails |
+
+**Environment Variables** (loaded from `~/.openclaw/.env`):
+- `GMAIL_USER` — Gmail address (default: dengalebr@gmail.com)
+- `GMAIL_APP_PASSWORD` — Gmail app password (required for email)
+- `NEWSLETTER_RECIPIENTS` — Comma-separated recipient list
+
+**Cron:** Daily at 8:15 AM SGT (runs 10 min after market overview email).
+
+---
+
+## Cron Jobs
+
+Both skills are scheduled via OpenClaw's built-in cron scheduler.
+
+```bash
+# List all scheduled jobs
+openclaw cron list
+
+# Manually trigger a job
+openclaw cron run <job-id>
+
+# Add a new job
+openclaw cron add --name "Job Name" --cron "0 8 * * *" --tz "Asia/Singapore" \
+  --session isolated --message "command to run" --wake next-heartbeat
+
+# Enable / Disable
+openclaw cron enable <job-id>
+openclaw cron disable <job-id>
+```
+
+| Job | Schedule | Cron Expr |
+|---|---|---|
+| Daily Market Email | 8:05 AM SGT | `5 23 * * *` (UTC) |
+| Daily Tech Intel Newsletter | 8:05 AM SGT | `5 23 * * *` (UTC) |
+
+Cron config stored at: `~/.openclaw/cron/jobs.json`
+
+---
+
+## Syncing Skills to OpenClaw Workspace
+
+Skills are developed in the project repo and synced to the OpenClaw workspace at `~/.openclaw/workspace/skills/`.
+
+### Market Overview (Python)
+```bash
+# Copy updated script to workspace
+cp market_overview.py ~/.openclaw/workspace/skills/market-overview/
+cp skills/market-overview/SKILL.md ~/.openclaw/workspace/skills/market-overview/
+```
+
+### Tech Intel (Go)
+```bash
+# Build and sync (uses Makefile)
+cd skills/tech-intel && make install
+
+# Or manually:
+cd skills/tech-intel
+go build -ldflags="-s -w" -o tech-intel main.go
+cp tech-intel SKILL.md template.html go.mod Makefile main.go \
+   ~/.openclaw/workspace/skills/tech-intel/
+```
+
+---
+
+## Exporting Skills to Another Computer
+
+### Option 1: Git Clone (Recommended)
+
+```bash
+# On the target machine (macOS, Linux, etc.)
+git clone git@github.com:baladengale/openclaw-agent.git
+cd openclaw-agent
+```
+
+#### Market Overview (Python)
+```bash
+# Install uv (if not present)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Run directly (uv auto-installs dependencies)
+uv run --script skills/market-overview/market_overview.py -s
+```
+
+#### Tech Intel (Go)
+```bash
+# Install Go (if not present)
+# macOS:
+brew install go
+# Linux:
+curl -fsSL https://go.dev/dl/go1.22.5.linux-amd64.tar.gz | sudo tar -C /usr/local -xzf -
+
+# Build for current platform
+cd skills/tech-intel
+make build
+./tech-intel
+```
+
+### Option 2: Cross-Compile Go Binary
+
+Build on the server, copy binary to target machine. No Go installation needed on target.
+
+```bash
+# On the build machine (this server)
+cd skills/tech-intel
+
+# For macOS (Apple Silicon)
+make darwin
+# Output: tech-intel-darwin-arm64
+
+# For Linux (x86_64)
+make linux
+# Output: tech-intel-linux-amd64
+
+# Copy to target
+scp tech-intel-darwin-arm64 user@mac:/path/to/destination/
+scp template.html user@mac:/path/to/destination/
+
+# On the target machine — just run it
+./tech-intel-darwin-arm64
+```
+
+### Option 3: Full Workspace Export
+
+Export the entire OpenClaw workspace including all skills and configuration.
+
+```bash
+# On source machine
+tar -czf openclaw-skills-export.tar.gz \
+  -C ~/.openclaw/workspace skills/
+
+# On target machine
+mkdir -p ~/.openclaw/workspace
+tar -xzf openclaw-skills-export.tar.gz -C ~/.openclaw/workspace/
+
+# Re-add cron jobs on the new machine
+openclaw cron add --name "Daily Tech Intel Newsletter" \
+  --cron "15 23 * * *" --tz "Asia/Singapore" --session isolated \
+  --message "Run this command and report the result: $(echo ~/.openclaw/workspace/skills/tech-intel/tech-intel)" \
+  --wake next-heartbeat
+```
+
+### Option 4: Docker (Market Overview)
+
+```bash
+# Pull pre-built image
+docker pull dengalebr/market-overview:latest
+
+# Run portfolio view
+docker run --rm dengalebr/market-overview -p
+
+# Run stock detail
+docker run --rm dengalebr/market-overview -t NVDA
 ```
