@@ -231,6 +231,9 @@ cd skills/tech-intel && make run
 
 # Run from Go source directly
 go run skills/tech-intel/main.go
+
+# To run the compiled binary on the server
+export PATH=$HOME/go-sdk/go/bin:$HOME/go/bin:$PATH && /home/bala/.openclaw/workspace/skills/tech-intel/tech-intel 2>&1
 ```
 
 | Feature | Detail |
