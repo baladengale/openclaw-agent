@@ -246,7 +246,7 @@ export PATH=$HOME/go-sdk/go/bin:$HOME/go/bin:$PATH && /home/bala/.openclaw/works
 | Fallback | Saves HTML to `~/.openclaw/workspace/` if email fails |
 
 **Environment Variables** (loaded from `~/.openclaw/.env`):
-- `GMAIL_USER` — Gmail address (default: your-email@example.com)
+- `GMAIL_USER` — Gmail address
 - `GMAIL_APP_PASSWORD` — Gmail app password (required for email)
 - `NEWSLETTER_RECIPIENTS` — Comma-separated recipient list
 
