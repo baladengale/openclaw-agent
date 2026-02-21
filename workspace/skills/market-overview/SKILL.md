@@ -1,158 +1,120 @@
 ---
 name: market-overview
-description: World market overview with graphical tables showing global indices, commodities, crypto, forex, portfolio tracking, stock details, dividends, earnings, and financials.
+description: World market overview with HTML email and terminal output - global indices, commodities, crypto, forex, portfolio tracking, stock details, dividends, earnings, and financials.
 metadata:
-  openclaw:
-    emoji: "🌍"
-    requires:
-      bins: ["uv"]
+  emoji: "🌍"
+  requires:
+    bins: ["go"]
 ---
 
-# Market Overview
+# Market Overview (Go) - World Markets & Portfolio Tracker
 
-Comprehensive world market overview with rich graphical tables, portfolio tracking, and individual stock analysis.
+Go-based market overview tool with concurrent Yahoo Finance data fetching, ANSI terminal tables, and responsive HTML email output.
 
 ## When to Activate
 
 Activate when the user asks about:
-- World markets, global markets, market overview
-- Stock market today, market prices
-- How are markets doing
-- Index prices (S&P 500, Dow, NASDAQ, Nikkei, Sensex, etc.)
-- Portfolio performance, my stocks
-- Stock details, dividends, earnings, financials, cashflow
+- World markets, market overview, market summary
+- Stock prices, portfolio view, my stocks
+- Stock detail, stock analysis
+- Dividends, earnings, financials, cashflow
 - Top movers, gainers, losers
 
 ## Script Location
 
 ```
-skills/market-overview/market_overview.py
+skills/market-overview/main.go
 ```
 
-## Views
+## Usage
 
-### Default (Detail View) — All world markets
+### Default Detail View (all world markets)
 ```bash
-uv run --script skills/market-overview/market_overview.py
+./market-overview
 ```
 
-### Summary — Key indices only
+### Summary View (key indices only)
 ```bash
-uv run --script skills/market-overview/market_overview.py -s
+./market-overview -s
 ```
 
-### Portfolio — Personal stock holdings
+### Portfolio View (personal holdings)
 ```bash
-uv run --script skills/market-overview/market_overview.py -p
+./market-overview -p
 ```
 
-### Skip stock movers section
+### Stock Detail
 ```bash
-uv run --script skills/market-overview/market_overview.py --no-movers
+./market-overview -t NVDA
 ```
 
-## Stock Analysis
-
-### Detailed stock info (price, valuation, analyst targets)
+### Dividends
 ```bash
-uv run --script skills/market-overview/market_overview.py -t TSLA
-uv run --script skills/market-overview/market_overview.py --stock NVDA
+./market-overview -d AAPL
 ```
 
-### Dividend history
+### Earnings
 ```bash
-uv run --script skills/market-overview/market_overview.py -d AAPL
-uv run --script skills/market-overview/market_overview.py --dividends V
+./market-overview -e TSLA
 ```
 
-### Earnings dates and EPS
+### Financials (yearly / quarterly)
 ```bash
-uv run --script skills/market-overview/market_overview.py -e TSLA
-uv run --script skills/market-overview/market_overview.py --earnings GOOGL
+./market-overview -f NVDA
+./market-overview -f NVDA -q
 ```
 
-### Income statement (yearly / quarterly)
+### Cashflow (yearly / quarterly)
 ```bash
-uv run --script skills/market-overview/market_overview.py -f NVDA
-uv run --script skills/market-overview/market_overview.py --financials NVDA -q
+./market-overview -c MSFT
+./market-overview -c MSFT -q
 ```
 
-### Cashflow statement (yearly / quarterly)
+### Skip movers section
 ```bash
-uv run --script skills/market-overview/market_overview.py -c MSFT
-uv run --script skills/market-overview/market_overview.py --cashflow MSFT -q
+./market-overview --no-movers
 ```
 
-## What Each View Shows
-
-### Market Views (default / summary / portfolio)
-- Current price with color-coded change indicators
-- 1-day change with trend arrows
-- Historical changes: 1W, 1M, 3M, 6M, 1Y, 2Y, 5Y
-- Top gainers and losers summary
-- Regional stock movers (US, Singapore, India)
-
-### Detail View Markets
-- **US Markets**: S&P 500, Dow Jones, NASDAQ, Russell 2000, VIX
-- **European Markets**: FTSE 100, DAX, CAC 40, Euro Stoxx 50
-- **Asian Markets**: Nikkei, Hang Seng, Shanghai, STI, Sensex, Nifty, KOSPI, TAIEX
-- **Commodities & Crypto**: Gold, Silver, Crude Oil, Brent, Bitcoin, Ethereum
-- **Currencies**: USD/EUR, USD/GBP, USD/JPY, USD/CNY, USD/INR, USD/SGD, USD/MYR, SGD/INR, SGD/MYR
-
-### Portfolio Stocks
-Tesla, NVIDIA, Visa, Microsoft, Meta, Google, Amazon, AMD, Broadcom, Apple
-
-### Stock Detail (`-t`)
-- Price info: current, open, day range, 52-week range, volume
-- Company info: sector, industry, market cap, enterprise value
-- Valuation: P/E (trailing & forward), PEG, P/B, P/S, EPS, beta, margins
-- Dividends: rate, yield
-- Analyst: target prices (low/mean/high), recommendation, upside/downside
-
-### Dividends (`-d`)
-- Annual dividend rate and yield
-- Total dividend history
-- Last 12 payment dates and amounts
-
-### Earnings (`-e`)
-- Upcoming and past earnings dates
-- EPS estimate vs reported
-- Surprise percentage
-
-### Financials (`-f`)
-- Total Revenue, Gross Profit, Operating Income, Net Income
-- EBITDA, Basic EPS, Diluted EPS
-- Up to 4 periods (yearly or quarterly with `-q`)
-
-### Cashflow (`-c`)
-- Operating, Investing, Financing cash flows
-- Free Cash Flow, Capital Expenditure, End Cash Position
-- Up to 4 periods (yearly or quarterly with `-q`)
-
-## Daily Email Report
-
-A daily HTML email with Market Summary + Portfolio is sent at 8:00 AM SGT to configured recipients via:
-```
-skills/market-overview/daily_email.py
+### Email control
+```bash
+./market-overview --no-email      # terminal only
+./market-overview --email-only    # email only, no terminal output
 ```
 
-Scheduled via OpenClaw cron (`openclaw cron list` to verify).
+## Build
 
-## CLI Reference
-
+```bash
+cd skills/market-overview
+make build          # compile for current platform
+make run            # build and run
+make linux          # cross-compile for Linux amd64
+make darwin         # cross-compile for macOS arm64
+make install        # build and copy to ~/.claude-skills/skills/market-overview/
 ```
-usage: market_overview.py [-h] [-s] [-p] [--no-movers] [-t SYMBOL] [-d SYMBOL]
-                          [-e SYMBOL] [-f SYMBOL] [-c SYMBOL] [-q]
 
-Options:
-  -h, --help            Show help
-  -s, --summary         Summary view (key indices only)
-  -p, --portfolio       Portfolio view (your stocks)
-  --no-movers           Skip stock movers section
-  -t, --stock SYMBOL    Detailed stock info
-  -d, --dividends SYMBOL  Dividend history
-  -e, --earnings SYMBOL   Earnings dates and EPS
-  -f, --financials SYMBOL Income statement
-  -c, --cashflow SYMBOL   Cashflow statement
-  -q, --quarterly       Quarterly data (for -f and -c)
-```
+## Environment Variables
+
+Loaded from `.env` in the current directory:
+
+- `GMAIL_USER` — Gmail address
+- `GMAIL_APP_PASSWORD` — Gmail app password (required for email)
+- `MARKET_RECIPIENTS` — Comma-separated recipient list
+
+## Data Sources
+
+All data fetched from Yahoo Finance via direct HTTP API:
+- Batch quotes (v7 endpoint) for current prices
+- Chart data (v8 endpoint) for historical changes
+- Quote summary (v10 endpoint) for fundamentals
+
+## Markets Tracked
+
+**Indices:** S&P 500, Dow Jones, NASDAQ, Russell 2000, VIX, FTSE 100, DAX, CAC 40, Euro Stoxx 50, Nikkei 225, Hang Seng, Shanghai, STI, Sensex, Nifty 50, KOSPI, TAIEX
+
+**Commodities & Crypto:** Gold, Silver, Crude Oil WTI, Brent Crude, Bitcoin, Ethereum
+
+**Currencies:** USD/EUR, USD/GBP, USD/JPY, USD/CNY, USD/INR, USD/SGD, USD/MYR, SGD/INR, SGD/MYR
+
+**Portfolio:** Tesla, NVIDIA, Visa, Microsoft, Meta, Google, Amazon, AMD, Broadcom, Apple
+
+**Movers:** 15 US + 8 Singapore + 10 India stocks
